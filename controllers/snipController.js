@@ -24,6 +24,10 @@ function enquote(mywords) {
     return '\'' + mywords + '\'';
 }
 
+function enmessage(somestr) {
+    return JSON.stringify({message: somestr});
+}
+
 /* Assumes that snip_id is a unique, valid string less than 1024 bytes */
 function upload_to_bucket(code, commentary, snip_id, callback) {
     const codesnip = {
@@ -87,7 +91,7 @@ function create_new_snip(snip_id, code, commentary, expire, res) {
     db.query(`INSERT INTO ${TABLE_NAME} ${COL_NAMES} VALUES (${enquote(uuid.v4())}, ${expire}, ${enquote(snip_id)});`,
                 function(err, rows, fields) {
                     if (err) {
-                        res.send('DATABASE ERROR: Your codesnip was not created.');
+                        res.send(enmessage('DATABASE ERROR: Your codesnip was not created.'));
                         throw err;
                     } else {
                         upload_to_bucket(code, commentary, snip_id, function (err, data) {
@@ -100,7 +104,7 @@ function create_new_snip(snip_id, code, commentary, expire, res) {
                                             return;
                                         });
                             } else {
-                                res.send(`SUCCESS: Your codesnip is now up at ${service_url}/${snip_id}`);
+                                res.send(enmessage(`${snip_id}`));
                             }
                         });
                     }
@@ -138,7 +142,8 @@ exports.snip_create_post = function (req, res, next) {
     let commentary = req.body.commentary;
     let expire = (req.body.expire != undefined)? req.body.expire : 'NULL';
     if (!code && !commentary) {
-        res.send("Error: No Code or Commentary Provided.");
+        const result = {message: "Error: No Code or Commentary Provided."}
+        res.send(JSON.stringify(result));
         return;
     } else {
         if (!code) code = "";
@@ -150,13 +155,13 @@ exports.snip_create_post = function (req, res, next) {
     let snip_id = req.body.custom_id;
 
     if (snip_id && snip_id.length > MAX_KEYLEN) {
-        res.send('Your chosen custom key \'' + snip_id + '\' is too long.');
+        res.send(enmessage('Your chosen custom key \'' + snip_id + '\' is too long.'));
         return;
     } else if (snip_id && snip_id.length >= MIN_KEYLEN) {
         db.query('SELECT URIKey FROM Snip WHERE URIKey=\'' + snip_id + '\';', 
                     function (err, rows, fields) {
                         if (rows[0] != undefined && rows[0].URIKey == snip_id) {
-                            res.send('Your chosen custom key \'' + snip_id + '\' is already in use.' + rows[0].URIKey);
+                            res.send(enmessage('Your chosen custom key \'' + snip_id + '\' is already in use.' + rows[0].URIKey));
                             return;     
                         } else {
                             create_new_snip(snip_id, code, commentary, expire, res);
@@ -166,7 +171,7 @@ exports.snip_create_post = function (req, res, next) {
         try_until_unique(trials=0, function(err, snip_id) {
             if (err) {
                 console.log(err);
-                res.send("FAILURE: COULD NOT FIND UNIQUE KEY");
+                res.send(enmessage("FAILURE: COULD NOT FIND UNIQUE KEY"));
             } else {
                 create_new_snip(snip_id, code, commentary, expire, res);
             }
@@ -225,13 +230,14 @@ exports.snip_view_get = function (req, res, next) {
                     } else {
                         download_from_bucket(snip_id, function(err, my_object) {
                             if (err) {
-                                res.send(`Error: the snip with id ${enquote(snip_id)} does not exist.`);
+                                // res.send(`Error: the snip with id ${enquote(snip_id)} does not exist.`);
+                                res.send(JSON.stringify({succeeded: false}));
                             } else {
                                 const recovered = JSON.parse(my_object.Body);
-                                res.send("My object:" + JSON.stringify(recovered));
+                                // res.send("My object:" + JSON.stringify(recovered));
+                                res.send(my_object.Body);
                             }
                         })
                     }
                 });
-    // NOT YET IMPLEMENTED
 };
