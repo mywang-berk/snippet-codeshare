@@ -10,6 +10,19 @@ import {withRouter} from 'react-router';
 import './App.css';
 import { functionDeclaration } from '@babel/types';
 
+import Editor from 'react-simple-code-editor';
+import { highlight, languages } from 'prismjs/components/prism-core';
+import 'prismjs/components/prism-clike';
+import 'prismjs/components/prism-javascript';
+import Prism from 'prismjs';
+
+const code_default = `/* Your code here */
+function add(a, b) {
+  return a + b;
+}
+`;
+
+
 function App() {
   let state = {users: []};
 
@@ -30,7 +43,7 @@ class CreateSnipForm extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      code_value: '/* Your CodeSnip goes here */',
+      code_value: code_default,
       commentary: 'Your commentary goes here.',
       custom_url: '',
       submitted: null
@@ -45,6 +58,12 @@ class CreateSnipForm extends React.Component {
       [event.target.name]: event.target.value
     });
   }
+
+  handleCodeChange = (value) => {
+    this.setState({
+      code_value: value
+    });
+  };
 
   handleSubmit(event) {
     event.preventDefault();
@@ -71,8 +90,19 @@ class CreateSnipForm extends React.Component {
         <form onSubmit={this.handleSubmit.bind(this)}>
           <label>
             Code Snippet: <br />
-            <textarea name="code_value" value={this.state.code_value} onChange={this.handleChange} />
           </label>
+          <Editor
+            name="code_value" 
+            value={this.state.code_value}
+            onValueChange={this.handleCodeChange}
+            highlight={code => highlight(code, languages.clike)}
+            padding={10}
+            style={{
+              fontFamily: '"Fira code", "Fira Mono", monospace',
+              fontSize: 12,
+            }}
+          />
+          {/* <textarea name="code_value" value={this.state.code_value} onChange={this.handleChange} /> */}
           <br />
           <label>
             Commentary: <br />
@@ -126,6 +156,7 @@ class ViewSnip extends React.Component {
           snip_commentary: data.commentary
         });
       });
+    setTimeout(() => Prism.highlightAll(), 1);
   }
 
   render() {
@@ -134,7 +165,12 @@ class ViewSnip extends React.Component {
         <div className='display-linebreak'>
           <label>
             Code: <br />
-            {this.state.snip_code} <br />
+            <pre className="line-numbers">
+              <code className="language-js">
+                {this.state.snip_code}
+              </code>
+            </pre>
+            <br />
           </label>
           <br />
           <label>
