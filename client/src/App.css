@@ -84,3 +84,5 @@ button{
   border-bottom: 4px solid \9;
   content: "";
 }
+
+a:visited {color:#0000EE;}

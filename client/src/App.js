@@ -237,6 +237,8 @@ class ViewSnip extends React.Component {
             Commentary: <br /> <br />
             {this.state.snip_commentary} <br />
           </label>
+          <br />
+          <Link to="/">Create another Codesnip</Link>
         </div>  
       );
     } else {
