@@ -15,7 +15,7 @@ const s3 = new AWS.S3();
 const MIN_KEYLEN = 5;
 const MAX_KEYLEN = 32;
 const TABLE_NAME = 'Snip';
-const COL_NAMES = '(contentKey, expiration, URIKey)';
+const COL_NAMES = '(contentKey, expiration, URIKey, language)';
 const service_url = 'https://localhost:3001'
 const BUCKET_NAME = 'snippet-objstore';
 
@@ -84,13 +84,14 @@ function download_from_bucket(snip_id, callback) {
 }
 
 /* Encapsulates the functionality of uploading a new snip to DB and object store */
-function create_new_snip(snip_id, code, commentary, expire, res) {
+function create_new_snip(snip_id, code, commentary, expire, res, lang) {
     snip_id = snip_id.toLowerCase();
 
     /* Generate an appropriate database and object store entry */
-    db.query(`INSERT INTO ${TABLE_NAME} ${COL_NAMES} VALUES (${enquote(uuid.v4())}, ${expire}, ${enquote(snip_id)});`,
+    db.query(`INSERT INTO ${TABLE_NAME} ${COL_NAMES} VALUES (${enquote(uuid.v4())}, ${expire}, ${enquote(snip_id)}, ${enquote(lang)});`,
                 function(err, rows, fields) {
                     if (err) {
+                        console.log(lang);
                         res.send(enmessage('DATABASE ERROR: Your codesnip was not created.'));
                         throw err;
                     } else {
@@ -141,6 +142,8 @@ exports.snip_create_post = function (req, res, next) {
     let code = req.body.code;
     let commentary = req.body.commentary;
     let expire = (req.body.expire != undefined)? req.body.expire : 'NULL';
+    let lang = (req.body.lang != undefined)? req.body.lang : 'NULL';
+
     if (!code && !commentary) {
         const result = {message: "Error: No Code or Commentary Provided."}
         res.send(JSON.stringify(result));
@@ -164,7 +167,7 @@ exports.snip_create_post = function (req, res, next) {
                             res.send(enmessage('Your chosen custom key \'' + snip_id + '\' is already in use.' + rows[0].URIKey));
                             return;     
                         } else {
-                            create_new_snip(snip_id, code, commentary, expire, res);
+                            create_new_snip(snip_id, code, commentary, expire, res, lang);
                         }
                     });
     } else { /* Generate a random ID if no custom one is supplied */
@@ -173,7 +176,7 @@ exports.snip_create_post = function (req, res, next) {
                 console.log(err);
                 res.send(enmessage("FAILURE: COULD NOT FIND UNIQUE KEY"));
             } else {
-                create_new_snip(snip_id, code, commentary, expire, res);
+                create_new_snip(snip_id, code, commentary, expire, res, lang);
             }
         });    
     }
@@ -220,7 +223,7 @@ exports.snip_delete_post = function (req, res, next) {
 exports.snip_view_get = function (req, res, next) {
     /* req should have req.params.snip_id */
     const snip_id = req.params.snip_id;
-    db.query(`SELECT URIKey FROM ${TABLE_NAME} WHERE URIKey=${enquote(snip_id)};`, 
+    db.query(`SELECT URIKey, language FROM ${TABLE_NAME} WHERE URIKey=${enquote(snip_id)};`, 
                 function (err, rows, fields) {
                     if (err) {
                         console.log(err);
@@ -228,14 +231,14 @@ exports.snip_view_get = function (req, res, next) {
                     } else if (!rows[0] || rows[0].URIKey != snip_id) {
                         res.send(`Error: the snip with id ${enquote(snip_id)} does not exist.`);
                     } else {
+                        let language = JSON.stringify(rows[0].language);
                         download_from_bucket(snip_id, function(err, my_object) {
                             if (err) {
-                                // res.send(`Error: the snip with id ${enquote(snip_id)} does not exist.`);
                                 res.send(JSON.stringify({succeeded: false}));
                             } else {
                                 const recovered = JSON.parse(my_object.Body);
-                                // res.send("My object:" + JSON.stringify(recovered));
-                                res.send(my_object.Body);
+                                recovered.language = language
+                                res.send(JSON.stringify(recovered));
                             }
                         })
                     }
