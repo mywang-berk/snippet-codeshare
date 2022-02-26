@@ -19,7 +19,7 @@
     "morgan": "~1.9.1",
     "mysql": "^2.18.1",
     "node-uuid": "^1.4.8",
-    "prismjs": "^1.19.0",
+    "prismjs": "^1.27.0",
     "react-router-dom": "^5.1.2",
     "react-simple-code-editor": "^0.11.0"
   },
